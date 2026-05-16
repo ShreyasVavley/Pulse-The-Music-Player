@@ -124,7 +124,7 @@ body::after {
     text-transform: uppercase;
 }
 .logo svg { color: var(--accent); filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.5)); }
-.logo span { background: linear-gradient(45deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.logo span { background: linear-gradient(45deg, #fff, var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 
 .nav-links { display: flex; flex-direction: column; gap: 8px; }
 .nav-links a { color: var(--text-subdued); text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.2s; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; }
