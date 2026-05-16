@@ -5,6 +5,10 @@
 
 **Pulse** is a state-of-the-art, high-fidelity music application designed for a premium listening experience. Built with a focus on **Black Luxury** aesthetics and cinematic animations, Pulse transforms your local music library into a gallery of sound.
 
+## 🔗 Live Demo
+- **Frontend**: [https://pulse-the-music-player.netlify.app/](https://pulse-the-music-player.netlify.app/)
+- **Backend API**: [https://pulse-the-music-player.onrender.com/docs](https://pulse-the-music-player.onrender.com/docs)
+
 ## ✨ Key Features
 
 - **🏆 Award-Winning UI/UX**: A "Black Luxury" design system featuring floating glass panels, gold/champagne accents, and frosted glass effects.
@@ -24,15 +28,15 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/pulse.git
-   cd pulse
+   git clone https://github.com/ShreyasVavley/Pulse-The-Music-Player.git
+   cd Pulse-The-Music-Player
    ```
 
 2. **Set up the Backend**
    ```bash
-   cd backend
-   pip install -r requirements.txt
-   uvicorn main:app --reload
+   pip install -r backend/requirements.txt
+   python -m backend.populate_db  # Seed the database
+   uvicorn backend.main:app --reload
    ```
 
 3. **Launch the Frontend**
