@@ -20,7 +20,7 @@ def populate():
     
     try:
         results = sp.playlist_tracks("37i9dQZEVXbMDoHDwVN2tF", limit=10)
-        os.makedirs("audio", exist_ok=True)
+        os.makedirs("backend/audio", exist_ok=True)
         
         for item in results['items']:
             track = item['track']
@@ -34,7 +34,7 @@ def populate():
             album = track['album']['name']
             cover_url = track['album']['images'][0]['url'] if track['album']['images'] else ""
             
-            file_name = f"audio/{track['id']}.mp3"
+            file_name = f"backend/audio/{track['id']}.mp3"
             if not os.path.exists(file_name):
                 response = requests.get(preview_url)
                 with open(file_name, 'wb') as f:
@@ -62,7 +62,7 @@ def populate():
         add_mock_data()
 
 def add_mock_data():
-    os.makedirs("audio", exist_ok=True)
+    os.makedirs("backend/audio", exist_ok=True)
     
     songs_data = [
         {
@@ -108,7 +108,7 @@ def add_mock_data():
     ]
 
     for index, data in enumerate(songs_data):
-        local_path = f"audio/mock_song_{index+1}.mp3"
+        local_path = f"backend/audio/mock_song_{index+1}.mp3"
         if not os.path.exists(local_path):
             print(f"Downloading {data['title']}...")
             try:

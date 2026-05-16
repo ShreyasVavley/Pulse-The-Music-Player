@@ -97,8 +97,8 @@ async def stream_audio(song_id: int, request: Request, db: Session = Depends(get
 
 @app.post("/upload")
 async def upload_song(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    os.makedirs("audio", exist_ok=True)
-    file_path = f"audio/{file.filename}"
+    os.makedirs("backend/audio", exist_ok=True)
+    file_path = f"backend/audio/{file.filename}"
     
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)

@@ -14,7 +14,7 @@ node_modules/
 .idea/
 
 # Database
-*.db
+# *.db
 *.sqlite3
 
 # Logs
