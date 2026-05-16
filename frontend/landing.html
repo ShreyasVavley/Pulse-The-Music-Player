@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE | The Future of Sound</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+    <div class="noise-overlay"></div>
+    
+    <header class="header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            <span>PULSE</span>
+        </div>
+        <nav class="nav">
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+            <a href="index.html" class="btn-primary">Launch App</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h1 class="fade-in">Experience Sound in <span class="gold-text">Black Luxury</span></h1>
+                <p class="fade-in delay-1">The ultimate high-fidelity music player for those who demand visual and acoustic perfection.</p>
+                <div class="hero-btns fade-in delay-2">
+                    <a href="index.html" class="btn-main">Get Started</a>
+                    <a href="#features" class="btn-secondary">Learn More</a>
+                </div>
+            </div>
+            <div class="hero-image fade-in delay-3">
+                <div class="image-wrapper">
+                    <img src="pulse_landing_hero_1778936598802.png" alt="Pulse Interface">
+                    <div class="glow"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="section-header">
+                <h2>Redefining the Player</h2>
+                <p>Every pixel crafted for sophistication.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="icon-box">🏆</div>
+                    <h3>Floating Islands</h3>
+                    <p>A revolutionary detached-panel architecture that provides a sense of weightlessness.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box">🌊</div>
+                    <h3>Glowing Waveform</h3>
+                    <p>Real-time golden spectrum visualization that breathes life into every beat.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box">🎨</div>
+                    <h3>Dynamic Art</h3>
+                    <p>Algorithmic cover generation that creates unique masterpiece for every song.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box">🌌</div>
+                    <h3>Aurora Flow</h3>
+                    <p>Atmospheric background lighting that evolves with your listening state.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 PULSE Audio. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Simple scroll observer for animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.fade-in, .feature-card').forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>

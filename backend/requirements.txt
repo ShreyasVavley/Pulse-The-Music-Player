@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+sqlalchemy
+spotipy
+requests
+python-multipart
+mutagen
