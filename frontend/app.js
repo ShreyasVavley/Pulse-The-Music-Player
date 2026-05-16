@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:8000' 
+    : 'https://pulse-backend.onrender.com'; // Placeholder - user should update this after backend deploy
 
 const audioElement = document.getElementById('audio-element');
 const playBtn = document.getElementById('btn-play');
