@@ -28,6 +28,10 @@ let analyser;
 let gainNode;
 let source;
 let audioInitialized = false;
+let eqFilters = [];
+const EQ_FREQS = [60, 230, 910, 4000, 14000];
+let likedTracks = JSON.parse(localStorage.getItem('pulse_liked_tracks') || '[]');
+let isShowingLiked = false;
 
 function formatTime(seconds) {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
@@ -200,7 +204,30 @@ function initAudio() {
     analyser.fftSize = 256;
     
     source = audioContext.createMediaElementSource(audioElement);
-    source.connect(analyser);
+    
+    // Connect EQ filters in series
+    let lastNode = source;
+    eqFilters = [];
+    EQ_FREQS.forEach((freq, idx) => {
+        const filter = audioContext.createBiquadFilter();
+        if (idx === 0) {
+            filter.type = 'lowshelf';
+        } else if (idx === EQ_FREQS.length - 1) {
+            filter.type = 'highshelf';
+        } else {
+            filter.type = 'peaking';
+            filter.Q.value = 1.0;
+        }
+        filter.frequency.value = freq;
+        const sliderEl = document.getElementById(`eq-band-${idx}`);
+        filter.gain.value = sliderEl ? parseFloat(sliderEl.value) : 0;
+        
+        lastNode.connect(filter);
+        lastNode = filter;
+        eqFilters.push(filter);
+    });
+    
+    lastNode.connect(analyser);
     analyser.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
@@ -229,11 +256,35 @@ function loadTrack(index, playOnLoad = true) {
     npTitle.textContent = track.title;
     npArtist.textContent = track.artist;
     
-    heroCover.src = track.cover_url || generatedCover;
-    heroTitle.textContent = track.title;
-    heroDesc.textContent = `${track.artist} • ${track.album}`;
+    // Update like button state
+    if (likeBtn) {
+        const isLiked = likedTracks.includes(track.id);
+        if (isLiked) {
+            likeBtn.classList.add('liked');
+            likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="currentColor" stroke-linejoin="round" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
+        } else {
+            likeBtn.classList.remove('liked');
+            likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
+        }
+    }
     
-    renderTrackList();
+    if (isShowingLiked) {
+        heroCover.src = generateLikedCover();
+        heroTitle.textContent = "Liked Songs";
+        const filteredCount = playlist.filter(t => likedTracks.includes(t.id)).length;
+        heroDesc.textContent = `Your favorite tracks • ${filteredCount} song${filteredCount === 1 ? '' : 's'}`;
+    } else {
+        heroCover.src = track.cover_url || generatedCover;
+        heroTitle.textContent = track.title;
+        heroDesc.textContent = `${track.artist} • ${track.album}`;
+    }
+    
+    if (isShowingLiked) {
+        const filtered = playlist.filter(t => likedTracks.includes(t.id));
+        renderTrackList(filtered);
+    } else {
+        renderTrackList();
+    }
     renderQueue();
     
     // WOW FACTOR: Sync theme colors with track
@@ -489,20 +540,42 @@ navLinks.forEach(link => {
         e.preventDefault();
         navLinks.forEach(l => l.classList.remove('active'));
         document.querySelectorAll('#playlist-list li').forEach(l => l.classList.remove('active'));
-        e.target.classList.add('active');
         
-        const isSearch = e.target.textContent === 'Search';
+        const targetLink = e.currentTarget;
+        targetLink.classList.add('active');
+        
+        const text = targetLink.textContent.trim();
+        const isSearch = text.includes('Search');
+        const isLiked = text.includes('Liked Songs');
+        
         if (isSearch) {
+            isShowingLiked = false;
             searchContainer.classList.remove('hidden');
             searchInput.focus();
             heroTitle.textContent = "Search";
             heroDesc.textContent = "Find your favorite tracks";
+        } else if (isLiked) {
+            isShowingLiked = true;
+            searchContainer.classList.add('hidden');
+            searchInput.value = '';
+            
+            const filtered = playlist.filter(t => likedTracks.includes(t.id));
+            renderTrackList(filtered);
+            
+            heroCover.src = generateLikedCover();
+            heroTitle.textContent = "Liked Songs";
+            heroDesc.textContent = `Your favorite tracks • ${filtered.length} song${filtered.length === 1 ? '' : 's'}`;
+            
+            // Sync theme colors with a premium deep-red HSL hue
+            document.documentElement.style.setProperty('--accent-dynamic', `hsl(350, 60%, 45%)`);
+            document.documentElement.style.setProperty('--accent-glow', `hsla(350, 60%, 45%, 0.35)`);
         } else {
+            isShowingLiked = false;
             searchContainer.classList.add('hidden');
             searchInput.value = '';
             renderTrackList();
-            heroTitle.textContent = e.target.textContent;
-            heroDesc.textContent = "Browsing • " + e.target.textContent;
+            heroTitle.textContent = text;
+            heroDesc.textContent = "Browsing • " + text;
         }
     });
 });
@@ -554,13 +627,28 @@ if ('mediaSession' in navigator) {
 const likeBtn = document.getElementById('btn-like');
 if (likeBtn) {
     likeBtn.addEventListener('click', () => {
-        likeBtn.classList.toggle('liked');
-        if (likeBtn.classList.contains('liked')) {
-            // Filled heart icon
+        if (playlist.length === 0) return;
+        const currentTrack = playlist[currentTrackIndex];
+        const trackId = currentTrack.id;
+        
+        const idx = likedTracks.indexOf(trackId);
+        if (idx === -1) {
+            likedTracks.push(trackId);
+            likeBtn.classList.add('liked');
             likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="currentColor" stroke-linejoin="round" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
         } else {
-            // Outline heart icon
+            likedTracks.splice(idx, 1);
+            likeBtn.classList.remove('liked');
             likeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
+        }
+        
+        localStorage.setItem('pulse_liked_tracks', JSON.stringify(likedTracks));
+        
+        // If currently viewing liked songs, refresh list
+        if (isShowingLiked) {
+            const filtered = playlist.filter(t => likedTracks.includes(t.id));
+            renderTrackList(filtered);
+            heroDesc.textContent = `Your favorite tracks • ${filtered.length} song${filtered.length === 1 ? '' : 's'}`;
         }
     });
 }
@@ -628,3 +716,100 @@ document.addEventListener('mousemove', (e) => {
         panel.style.transform = `perspective(1000px) rotateY(${x}deg) rotateX(${-y}deg) translateY(${panel.classList.contains('player-bar') ? (panel.classList.contains('active') ? '0' : '150%') : '0'})`;
     });
 });
+
+function generateLikedCover() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    
+    const gradient = ctx.createLinearGradient(0, 0, 300, 300);
+    gradient.addColorStop(0, '#3a0d10');
+    gradient.addColorStop(1, '#0c0203');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 300, 300);
+    
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.15)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(150, 150, 110, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#ff3b30';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = 'rgba(255, 59, 48, 0.6)';
+    ctx.font = 'bold 100px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❤', 150, 150);
+    
+    return canvas.toDataURL();
+}
+
+// --- Equalizer Logic ---
+const btnEq = document.getElementById('btn-eq');
+const btnCloseEq = document.getElementById('btn-close-eq');
+const eqPanel = document.getElementById('eq-panel');
+const eqPresetSelect = document.getElementById('eq-preset');
+
+if (btnEq && btnCloseEq && eqPanel) {
+    btnEq.addEventListener('click', () => {
+        eqPanel.classList.add('open');
+        if (queuePanel) queuePanel.classList.remove('open');
+    });
+    btnCloseEq.addEventListener('click', () => eqPanel.classList.remove('open'));
+}
+
+const EQ_PRESETS = {
+    flat: [0, 0, 0, 0, 0],
+    bass: [8, 4, 0, 0, -2],
+    vocal: [-2, 1, 5, 3, -1],
+    electronic: [6, 2, -1, 3, 5],
+    acoustic: [2, 3, 1, 2, 4],
+    lounge: [5, 2, -2, 1, -3]
+};
+
+function updateEqFilter(idx, value) {
+    const dbValue = parseFloat(value);
+    const valueEl = document.getElementById(`eq-value-${idx}`);
+    if (valueEl) {
+        valueEl.textContent = `${dbValue > 0 ? '+' : ''}${dbValue}dB`;
+    }
+    if (audioInitialized && eqFilters[idx]) {
+        eqFilters[idx].gain.value = dbValue;
+    }
+}
+
+for (let i = 0; i < 5; i++) {
+    const slider = document.getElementById(`eq-band-${i}`);
+    if (slider) {
+        slider.addEventListener('input', (e) => {
+            updateEqFilter(i, e.target.value);
+            if (eqPresetSelect) eqPresetSelect.value = 'custom';
+        });
+    }
+}
+
+if (eqPresetSelect) {
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = 'Custom';
+    customOpt.style.display = 'none';
+    eqPresetSelect.appendChild(customOpt);
+
+    eqPresetSelect.addEventListener('change', (e) => {
+        const preset = e.target.value;
+        if (preset === 'custom') return;
+        const gains = EQ_PRESETS[preset];
+        if (gains) {
+            gains.forEach((gain, idx) => {
+                const slider = document.getElementById(`eq-band-${idx}`);
+                if (slider) {
+                    slider.value = gain;
+                    updateEqFilter(idx, gain);
+                }
+            });
+        }
+    });
+}

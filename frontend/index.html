@@ -26,9 +26,13 @@
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     Search
                 </a>
-                <a href="#">
+                <a href="#" id="nav-library">
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
                     Library
+                </a>
+                <a href="#" id="nav-liked">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    Liked Songs
                 </a>
             </nav>
             <div class="playlists">
@@ -123,6 +127,15 @@
             </div>
 
             <div class="volume-controls">
+                <button id="btn-eq" class="icon-btn" aria-label="Equalizer" title="Equalizer">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+                        <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+                        <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
+                        <line x1="17" y1="16" x2="23" y2="16"></line>
+                    </svg>
+                </button>
                 <button id="btn-queue" class="icon-btn" aria-label="Queue" title="Queue"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
                 <button id="btn-mute" class="icon-btn" aria-label="Mute" title="Mute"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg></button>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1" aria-label="Volume slider" title="Volume slider">
@@ -137,6 +150,53 @@
             <button id="btn-close-queue" class="icon-btn" aria-label="Close Queue" title="Close Queue"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
         <ul id="queue-list" class="queue-list"></ul>
+    </div>
+
+    <div class="eq-panel" id="eq-panel">
+        <div class="eq-header">
+            <h3>Audio Equalizer</h3>
+            <button id="btn-close-eq" class="icon-btn" aria-label="Close Equalizer" title="Close Equalizer"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        <div class="eq-content">
+            <div class="eq-preset-container">
+                <label for="eq-preset">PRESET</label>
+                <select id="eq-preset" class="eq-preset-select" title="Equalizer Preset" aria-label="Equalizer Preset">
+                    <option value="flat">Flat</option>
+                    <option value="bass">Bass Boost</option>
+                    <option value="vocal">Vocal Boost</option>
+                    <option value="electronic">Electronic</option>
+                    <option value="acoustic">Acoustic</option>
+                    <option value="lounge">Lounge</option>
+                </select>
+            </div>
+            <div class="eq-sliders">
+                <div class="eq-slider-container">
+                    <span class="eq-value" id="eq-value-0">0dB</span>
+                    <input type="range" id="eq-band-0" class="eq-slider" min="-12" max="12" step="1" value="0" orient="vertical" title="60 Hz band" aria-label="60 Hz band">
+                    <span class="eq-label">60Hz</span>
+                </div>
+                <div class="eq-slider-container">
+                    <span class="eq-value" id="eq-value-1">0dB</span>
+                    <input type="range" id="eq-band-1" class="eq-slider" min="-12" max="12" step="1" value="0" orient="vertical" title="230 Hz band" aria-label="230 Hz band">
+                    <span class="eq-label">230Hz</span>
+                </div>
+                <div class="eq-slider-container">
+                    <span class="eq-value" id="eq-value-2">0dB</span>
+                    <input type="range" id="eq-band-2" class="eq-slider" min="-12" max="12" step="1" value="0" orient="vertical" title="910 Hz band" aria-label="910 Hz band">
+                    <span class="eq-label">910Hz</span>
+                </div>
+                <div class="eq-slider-container">
+                    <span class="eq-value" id="eq-value-3">0dB</span>
+                    <input type="range" id="eq-band-3" class="eq-slider" min="-12" max="12" step="1" value="0" orient="vertical" title="4 kHz band" aria-label="4 kHz band">
+                    <span class="eq-label">4kHz</span>
+                </div>
+                <div class="eq-slider-container">
+                    <span class="eq-value" id="eq-value-4">0dB</span>
+                    <input type="range" id="eq-band-4" class="eq-slider" min="-12" max="12" step="1" value="0" orient="vertical" title="14 kHz band" aria-label="14 kHz band">
+                    <span class="eq-label">14kHz</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <audio id="audio-element" crossorigin="anonymous"></audio>
