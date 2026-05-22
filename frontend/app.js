@@ -38,6 +38,7 @@ let is8DActive = false;
 let isLofiActive = false;
 let isKaraokeActive = false;
 let panAngle = 0;
+let tubeDrive = 1.0;
 
 let pannerNode = null;
 let reverbDelayNode = null;
@@ -52,6 +53,19 @@ let vinylCrackleSource = null;
 let vinylCrackleGain = null;
 let vocalFilterNode1 = null;
 let vocalFilterNode2 = null;
+let tubeShaperNode = null;
+
+function makeDistortionCurve(drive) {
+    const n_samples = 44100;
+    const curve = new Float32Array(n_samples);
+    const denom = Math.tanh(drive);
+    for (let i = 0; i < n_samples; ++i) {
+        const x = (i * 2) / n_samples - 1;
+        // sigmoidal soft-clipping function modeling dynamic tube saturation
+        curve[i] = Math.tanh(x * drive) / denom;
+    }
+    return curve;
+}
 
 function formatTime(seconds) {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
@@ -264,6 +278,17 @@ function initAudio() {
     vocalFilterNode1.connect(vocalFilterNode2);
     lastNode = vocalFilterNode2;
     
+    // Connect WaveShaper Warm Tube Saturation
+    tubeShaperNode = audioContext.createWaveShaper();
+    const tubeSlider = document.getElementById('slider-tube');
+    const tubeVal = tubeSlider ? parseFloat(tubeSlider.value) : 100;
+    tubeDrive = tubeVal / 100; // Map 100-500 to 1.0-5.0
+    tubeShaperNode.curve = makeDistortionCurve(tubeDrive);
+    tubeShaperNode.oversample = '4x';
+    
+    lastNode.connect(tubeShaperNode);
+    lastNode = tubeShaperNode;
+    
     // Connect Lofi Warm Filters
     lofiFilterNode1 = audioContext.createBiquadFilter();
     lofiFilterNode1.type = 'peaking';
@@ -444,9 +469,16 @@ function playAudio() {
     document.querySelector('.player-bar').classList.add('active');
     document.querySelector('.app-container').classList.add('player-active');
     
+    // Preserve custom playback speeds on track loading
+    const speedSlider = document.getElementById('slider-speed');
+    const speedVal = speedSlider ? parseFloat(speedSlider.value) / 100 : 1.0;
+    audioElement.playbackRate = speedVal;
+    
     const playPromise = audioElement.play();
     if (playPromise !== undefined) {
         playPromise.then(() => {
+            // Re-apply playback rate just in case browser resets on loaded metadata
+            audioElement.playbackRate = speedVal;
             isPlaying = true;
             document.getElementById('hero-cover').classList.add('playing');
             document.getElementById('np-cover').classList.add('spinning');
@@ -1062,5 +1094,126 @@ if (visualizerThemeSelect) {
     window.visualizerTheme = visualizerThemeSelect.value;
     visualizerThemeSelect.addEventListener('change', (e) => {
         window.visualizerTheme = e.target.value;
+    });
+}
+
+// --- Warm Tube Saturation Slider ---
+const sliderTube = document.getElementById('slider-tube');
+const tubeValueDisp = document.getElementById('tube-value');
+
+if (sliderTube && tubeValueDisp) {
+    sliderTube.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (val === 100) {
+            tubeValueDisp.textContent = 'Clean';
+        } else {
+            tubeValueDisp.textContent = `${(val / 100).toFixed(1)}x`;
+        }
+        
+        tubeDrive = val / 100;
+        if (audioInitialized && tubeShaperNode) {
+            // Apply new distortion curve to modeled tube shaper
+            tubeShaperNode.curve = makeDistortionCurve(tubeDrive);
+        }
+    });
+}
+
+// --- Speed & Playback Tempo Lab ---
+const sliderSpeed = document.getElementById('slider-speed');
+const speedValueDisp = document.getElementById('speed-value');
+const btnPresetSlow = document.getElementById('btn-preset-slow');
+const btnPresetNormal = document.getElementById('btn-preset-normal');
+const btnPresetNightcore = document.getElementById('btn-preset-nightcore');
+
+function updateSpeed(val) {
+    if (speedValueDisp) speedValueDisp.textContent = `${val.toFixed(2)}x`;
+    audioElement.playbackRate = val;
+    if (sliderSpeed) {
+        sliderSpeed.value = Math.round(val * 100);
+        updateSliderBackground(sliderSpeed);
+    }
+}
+
+if (sliderSpeed) {
+    sliderSpeed.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) / 100;
+        updateSpeed(val);
+        
+        // Clear active states on presets when manually sliding
+        [btnPresetSlow, btnPresetNormal, btnPresetNightcore].forEach(b => {
+            if (b) b.classList.remove('active');
+        });
+    });
+}
+
+function setActiveSpeedPreset(activeBtn) {
+    [btnPresetSlow, btnPresetNormal, btnPresetNightcore].forEach(b => {
+        if (b) b.classList.remove('active');
+    });
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+if (btnPresetSlow) {
+    btnPresetSlow.addEventListener('click', () => {
+        if (!audioInitialized) initAudio();
+        setActiveSpeedPreset(btnPresetSlow);
+        updateSpeed(0.75);
+        
+        // Slowed & Reverb: automatically apply Reverb & Lofi Analog
+        if (toggleLofi && !toggleLofi.checked) {
+            toggleLofi.checked = true;
+            toggleLofi.dispatchEvent(new Event('change'));
+        }
+        if (sliderReverb) {
+            sliderReverb.value = 60;
+            sliderReverb.dispatchEvent(new Event('input'));
+        }
+    });
+}
+
+if (btnPresetNormal) {
+    btnPresetNormal.addEventListener('click', () => {
+        setActiveSpeedPreset(btnPresetNormal);
+        updateSpeed(1.0);
+        
+        // Reset all effects to clean
+        if (toggleLofi && toggleLofi.checked) {
+            toggleLofi.checked = false;
+            toggleLofi.dispatchEvent(new Event('change'));
+        }
+        if (sliderReverb) {
+            sliderReverb.value = 0;
+            sliderReverb.dispatchEvent(new Event('input'));
+        }
+        if (sliderTube) {
+            sliderTube.value = 100;
+            sliderTube.dispatchEvent(new Event('input'));
+        }
+        if (eqPresetSelect) {
+            eqPresetSelect.value = 'flat';
+            eqPresetSelect.dispatchEvent(new Event('change'));
+        }
+    });
+}
+
+if (btnPresetNightcore) {
+    btnPresetNightcore.addEventListener('click', () => {
+        if (!audioInitialized) initAudio();
+        setActiveSpeedPreset(btnPresetNightcore);
+        updateSpeed(1.25);
+        
+        // Deactivate lofi/reverb, boost highs
+        if (toggleLofi && toggleLofi.checked) {
+            toggleLofi.checked = false;
+            toggleLofi.dispatchEvent(new Event('change'));
+        }
+        if (sliderReverb) {
+            sliderReverb.value = 0;
+            sliderReverb.dispatchEvent(new Event('input'));
+        }
+        if (eqPresetSelect) {
+            eqPresetSelect.value = 'electronic';
+            eqPresetSelect.dispatchEvent(new Event('change'));
+        }
     });
 }

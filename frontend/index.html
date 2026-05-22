@@ -279,6 +279,42 @@
                         <span class="switch-slider"></span>
                     </label>
                 </div>
+                <div class="control-col">
+                    <div class="control-label-desc">
+                        <span class="control-title">Warm Tube Saturation</span>
+                        <span class="control-desc">Applies vintage analog vacuum tube preamp drive & warm harmonics</span>
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="slider-tube" min="100" max="500" value="100" class="studio-slider" title="Tube saturation" aria-label="Tube saturation">
+                        <span class="slider-value-display" id="tube-value">Clean</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speed & Tempo Lab -->
+            <div class="studio-section">
+                <div class="studio-section-header">
+                    <h4>TEMPO & SPEED LAB</h4>
+                    <span class="studio-badge">Vaporwave</span>
+                </div>
+                <div class="control-col">
+                    <div class="control-label-desc">
+                        <span class="control-title">Playback Rate</span>
+                        <span class="control-desc">Speed up or slow down the tempo smoothly in real-time</span>
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="slider-speed" min="50" max="200" value="100" class="studio-slider" title="Playback speed" aria-label="Playback speed">
+                        <span class="slider-value-display" id="speed-value">1.0x</span>
+                    </div>
+                </div>
+                <div class="control-row" style="margin-top: 4px;">
+                    <span class="control-desc" style="font-weight: 500;">Speed Presets:</span>
+                    <div style="display: flex; gap: 6px;">
+                        <button id="btn-preset-slow" class="preset-btn" title="Slowed & Reverb Preset">Slowed</button>
+                        <button id="btn-preset-normal" class="preset-btn active" title="Normal Preset">Normal</button>
+                        <button id="btn-preset-nightcore" class="preset-btn" title="Nightcore Preset">Nightcore</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Visualizer Selector -->
@@ -293,6 +329,7 @@
                         <option value="luxury-gold">Luxury Gold Columns</option>
                         <option value="laser-wave">Cyber Neon Wave</option>
                         <option value="cosmic-ripple">Cosmic Ripple (3D Orb)</option>
+                        <option value="cosmic-particles">Cosmic Particle Fountain</option>
                     </select>
                 </div>
             </div>

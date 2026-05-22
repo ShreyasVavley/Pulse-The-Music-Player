@@ -16,6 +16,9 @@ function initVisualizer(analyserNode) {
     const dataArray = new Uint8Array(bufferLength);
     const timeDataArray = new Uint8Array(bufferLength);
     
+    const particles = [];
+    let frameCounter = 0;
+    
     function draw() {
         requestAnimationFrame(draw);
         
@@ -153,6 +156,85 @@ function initVisualizer(analyserNode) {
                 ctx.lineTo(endX, endY);
                 ctx.stroke();
             }
+        } 
+        else if (theme === 'cosmic-particles') {
+            frameCounter++;
+            
+            // Extract the dynamic accent theme color
+            let themeColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-dynamic').trim();
+            if (!themeColor) themeColor = 'hsl(45, 100%, 50%)';
+            
+            // Spawn rate scales with bass power
+            const spawnChance = 0.15 + (bassAvg / 255) * 0.65;
+            if (particles.length < 80 && Math.random() < spawnChance) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: canvas.height + 10,
+                    vx: (Math.random() * 2 - 1) * 0.6,
+                    vy: -1.2 - (Math.random() * 1.5),
+                    size: 2 + Math.random() * 4,
+                    alpha: 1.0,
+                    decay: 0.005 + Math.random() * 0.008,
+                    waveOffset: Math.random() * Math.PI * 2,
+                    speedFactor: 0.8 + Math.random() * 0.5
+                });
+            }
+            
+            // Render and update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                
+                // Update position: bass energy speeds them up and sends them soaring!
+                const bassVelocityBoost = (bassAvg / 255) * 2.8 * p.speedFactor;
+                p.y += p.vy - bassVelocityBoost;
+                
+                // Sinusoidal swaying
+                p.x += p.vx + Math.sin(p.waveOffset + frameCounter * 0.03) * 0.4;
+                
+                // Fade out
+                p.alpha -= p.decay;
+                
+                // Size pulse driven by volume
+                const sizePulse = 1.0 + (bassAvg / 255) * 0.8;
+                const renderSize = Math.max(1, p.size * sizePulse);
+                
+                // Remove if dead
+                if (p.alpha <= 0 || p.y < -30 || p.x < -30 || p.x > canvas.width + 30) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                
+                // Draw glowing audio-reactive particle
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, renderSize, 0, Math.PI * 2);
+                
+                // Create radial glowing gradient
+                const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, renderSize * 2.2);
+                radGrad.addColorStop(0, themeColor.replace('50%)', `60%, ${p.alpha})`));
+                radGrad.addColorStop(0.4, 'rgba(212, 175, 55, ' + (p.alpha * 0.45) + ')');
+                radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                ctx.fillStyle = radGrad;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = themeColor;
+                ctx.fill();
+            }
+            
+            // Draw a subtle responsive energy wave field at the bottom source
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let i = 0; i <= 10; i++) {
+                const x = (i / 10) * canvas.width;
+                const freqBin = Math.floor((i / 10) * (bufferLength / 3));
+                const waveHeight = (dataArray[freqBin] / 255) * 22;
+                const y = canvas.height - waveHeight;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            
+            ctx.fillStyle = 'rgba(212, 175, 55, 0.04)';
+            ctx.fill();
         }
     }
     
