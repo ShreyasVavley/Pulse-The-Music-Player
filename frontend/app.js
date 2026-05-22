@@ -33,6 +33,26 @@ const EQ_FREQS = [60, 230, 910, 4000, 14000];
 let likedTracks = JSON.parse(localStorage.getItem('pulse_liked_tracks') || '[]');
 let isShowingLiked = false;
 
+// --- Sound Lab State and DSP Nodes ---
+let is8DActive = false;
+let isLofiActive = false;
+let isKaraokeActive = false;
+let panAngle = 0;
+
+let pannerNode = null;
+let reverbDelayNode = null;
+let reverbFeedbackNode = null;
+let reverbWetGain = null;
+let tapeDelayNode = null;
+let tapeLfoOsc = null;
+let tapeLfoGain = null;
+let lofiFilterNode1 = null;
+let lofiFilterNode2 = null;
+let vinylCrackleSource = null;
+let vinylCrackleGain = null;
+let vocalFilterNode1 = null;
+let vocalFilterNode2 = null;
+
 function formatTime(seconds) {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -227,17 +247,126 @@ function initAudio() {
         eqFilters.push(filter);
     });
     
+    // Connect Karaoke Vocal Cut Filters
+    vocalFilterNode1 = audioContext.createBiquadFilter();
+    vocalFilterNode1.type = 'peaking';
+    vocalFilterNode1.frequency.value = 1200;
+    vocalFilterNode1.Q.value = 0.8;
+    vocalFilterNode1.gain.value = isKaraokeActive ? -16 : 0;
+    
+    vocalFilterNode2 = audioContext.createBiquadFilter();
+    vocalFilterNode2.type = 'peaking';
+    vocalFilterNode2.frequency.value = 2500;
+    vocalFilterNode2.Q.value = 0.8;
+    vocalFilterNode2.gain.value = isKaraokeActive ? -16 : 0;
+    
+    lastNode.connect(vocalFilterNode1);
+    vocalFilterNode1.connect(vocalFilterNode2);
+    lastNode = vocalFilterNode2;
+    
+    // Connect Lofi Warm Filters
+    lofiFilterNode1 = audioContext.createBiquadFilter();
+    lofiFilterNode1.type = 'peaking';
+    lofiFilterNode1.frequency.value = 400;
+    lofiFilterNode1.Q.value = 0.5;
+    lofiFilterNode1.gain.value = isLofiActive ? 4 : 0;
+    
+    lofiFilterNode2 = audioContext.createBiquadFilter();
+    lofiFilterNode2.type = 'lowpass';
+    lofiFilterNode2.frequency.value = isLofiActive ? 3200 : 22000;
+    
+    lastNode.connect(lofiFilterNode1);
+    lofiFilterNode1.connect(lofiFilterNode2);
+    lastNode = lofiFilterNode2;
+    
+    // Connect Tape Delay (Wow & Flutter)
+    tapeDelayNode = audioContext.createDelay();
+    tapeDelayNode.delayTime.value = 0.005;
+    
+    tapeLfoOsc = audioContext.createOscillator();
+    tapeLfoGain = audioContext.createGain();
+    tapeLfoOsc.frequency.value = 1.2;
+    tapeLfoGain.gain.value = isLofiActive ? 0.0018 : 0.0;
+    
+    tapeLfoOsc.connect(tapeLfoGain);
+    tapeLfoGain.connect(tapeDelayNode.delayTime);
+    tapeLfoOsc.start();
+    
+    lastNode.connect(tapeDelayNode);
+    lastNode = tapeDelayNode;
+    
+    // Connect Concert Reverb (Parallel delay line)
+    reverbDelayNode = audioContext.createDelay();
+    reverbDelayNode.delayTime.value = 0.18;
+    reverbFeedbackNode = audioContext.createGain();
+    reverbFeedbackNode.gain.value = 0.45;
+    reverbWetGain = audioContext.createGain();
+    
+    const reverbSlider = document.getElementById('slider-reverb');
+    const reverbVal = reverbSlider ? parseFloat(reverbSlider.value) : 0;
+    reverbWetGain.gain.value = isNaN(reverbVal) ? 0 : reverbVal / 150;
+    
+    reverbDelayNode.connect(reverbFeedbackNode);
+    reverbFeedbackNode.connect(reverbDelayNode);
+    
+    lastNode.connect(reverbDelayNode);
+    
+    // Create Panner
+    pannerNode = audioContext.createStereoPanner ? audioContext.createStereoPanner() : null;
+    
+    if (pannerNode) {
+        lastNode.connect(pannerNode);
+        reverbDelayNode.connect(reverbWetGain);
+        reverbWetGain.connect(pannerNode);
+        lastNode = pannerNode;
+    } else {
+        reverbDelayNode.connect(reverbWetGain);
+        reverbWetGain.connect(analyser); // fallback
+    }
+    
     lastNode.connect(analyser);
     analyser.connect(gainNode);
     gainNode.connect(audioContext.destination);
     
     audioInitialized = true;
-    
     gainNode.gain.value = volumeSlider.value;
+    
+    // Procedural Vinyl crackle
+    initVinylCrackle();
     
     if (window.initVisualizer) {
         window.initVisualizer(analyser);
     }
+}
+
+function initVinylCrackle() {
+    if (!audioContext) return;
+    
+    const bufferSize = audioContext.sampleRate * 2.0;
+    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        const rand = Math.random();
+        if (rand > 0.9997) {
+            data[i] = (Math.random() * 2 - 1) * 0.28;
+        } else if (rand > 0.994) {
+            data[i] = (Math.random() * 2 - 1) * 0.035;
+        } else {
+            data[i] = (Math.random() * 2 - 1) * 0.0015;
+        }
+    }
+    
+    vinylCrackleSource = audioContext.createBufferSource();
+    vinylCrackleSource.buffer = buffer;
+    vinylCrackleSource.loop = true;
+    
+    vinylCrackleGain = audioContext.createGain();
+    vinylCrackleGain.gain.value = isLofiActive ? 0.08 : 0.0;
+    
+    vinylCrackleSource.connect(vinylCrackleGain);
+    vinylCrackleGain.connect(audioContext.destination);
+    vinylCrackleSource.start();
 }
 
 function loadTrack(index, playOnLoad = true) {
@@ -757,6 +886,10 @@ if (btnEq && btnCloseEq && eqPanel) {
     btnEq.addEventListener('click', () => {
         eqPanel.classList.add('open');
         if (queuePanel) queuePanel.classList.remove('open');
+        if (studioPanel) {
+            studioPanel.classList.remove('open');
+            if (btnStudio) btnStudio.classList.remove('active');
+        }
     });
     btnCloseEq.addEventListener('click', () => eqPanel.classList.remove('open'));
 }
@@ -811,5 +944,123 @@ if (eqPresetSelect) {
                 }
             });
         }
+    });
+}
+
+// --- Sound Lab & Visual Engine Logic ---
+const btnStudio = document.getElementById('btn-studio');
+const btnCloseStudio = document.getElementById('btn-close-studio');
+const studioPanel = document.getElementById('studio-panel');
+const toggleKaraoke = document.getElementById('toggle-karaoke');
+const toggle8D = document.getElementById('toggle-8d');
+const sliderReverb = document.getElementById('slider-reverb');
+const reverbValueDisp = document.getElementById('reverb-value');
+const toggleLofi = document.getElementById('toggle-lofi');
+const visualizerThemeSelect = document.getElementById('visualizer-theme');
+
+if (btnStudio && btnCloseStudio && studioPanel) {
+    btnStudio.addEventListener('click', () => {
+        studioPanel.classList.add('open');
+        btnStudio.classList.add('active');
+        if (eqPanel) eqPanel.classList.remove('open');
+        if (queuePanel) queuePanel.classList.remove('open');
+    });
+    btnCloseStudio.addEventListener('click', () => {
+        studioPanel.classList.remove('open');
+        btnStudio.classList.remove('active');
+    });
+}
+
+// Update other drawers to close Studio
+if (btnQueue && btnCloseQueue && queuePanel) {
+    btnQueue.addEventListener('click', () => {
+        queuePanel.classList.add('open');
+        if (eqPanel) eqPanel.classList.remove('open');
+        if (studioPanel) {
+            studioPanel.classList.remove('open');
+            if (btnStudio) btnStudio.classList.remove('active');
+        }
+    });
+    btnCloseQueue.addEventListener('click', () => queuePanel.classList.remove('open'));
+}
+
+// Karaoke logic
+if (toggleKaraoke) {
+    toggleKaraoke.addEventListener('change', (e) => {
+        isKaraokeActive = e.target.checked;
+        if (audioInitialized && vocalFilterNode1 && vocalFilterNode2) {
+            const targetGain = isKaraokeActive ? -16 : 0;
+            vocalFilterNode1.gain.linearRampToValueAtTime(targetGain, audioContext.currentTime + 0.4);
+            vocalFilterNode2.gain.linearRampToValueAtTime(targetGain, audioContext.currentTime + 0.4);
+        }
+    });
+}
+
+// 8D Headphone simulation
+if (toggle8D) {
+    toggle8D.addEventListener('change', (e) => {
+        is8DActive = e.target.checked;
+        if (is8DActive) {
+            if (!audioInitialized) initAudio();
+            run8DPanning();
+        } else {
+            if (audioInitialized && pannerNode) {
+                pannerNode.pan.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+            }
+        }
+    });
+}
+
+function run8DPanning() {
+    if (!is8DActive || !pannerNode) return;
+    panAngle += 0.015;
+    pannerNode.pan.value = Math.sin(panAngle) * 0.8;
+    requestAnimationFrame(run8DPanning);
+}
+
+// Reverb hall logic
+if (sliderReverb && reverbValueDisp) {
+    sliderReverb.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (val === 0) {
+            reverbValueDisp.textContent = 'Off';
+        } else {
+            reverbValueDisp.textContent = `${val}%`;
+        }
+        
+        if (audioInitialized && reverbWetGain) {
+            reverbWetGain.gain.linearRampToValueAtTime(val / 150, audioContext.currentTime + 0.1);
+        }
+    });
+}
+
+// Lofi Vinyl & Tape Logic
+if (toggleLofi) {
+    toggleLofi.addEventListener('change', (e) => {
+        isLofiActive = e.target.checked;
+        if (isLofiActive) {
+            if (!audioInitialized) initAudio();
+            if (lofiFilterNode1 && lofiFilterNode2 && tapeLfoGain && vinylCrackleGain) {
+                lofiFilterNode1.gain.linearRampToValueAtTime(4, audioContext.currentTime + 0.3);
+                lofiFilterNode2.frequency.exponentialRampToValueAtTime(3200, audioContext.currentTime + 0.3);
+                tapeLfoGain.gain.linearRampToValueAtTime(0.0018, audioContext.currentTime + 0.5);
+                vinylCrackleGain.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.4);
+            }
+        } else {
+            if (audioInitialized && lofiFilterNode1 && lofiFilterNode2 && tapeLfoGain && vinylCrackleGain) {
+                lofiFilterNode1.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+                lofiFilterNode2.frequency.exponentialRampToValueAtTime(22000, audioContext.currentTime + 0.3);
+                tapeLfoGain.gain.linearRampToValueAtTime(0.0, audioContext.currentTime + 0.3);
+                vinylCrackleGain.gain.linearRampToValueAtTime(0.0, audioContext.currentTime + 0.4);
+            }
+        }
+    });
+}
+
+// Visual theme choice
+if (visualizerThemeSelect) {
+    window.visualizerTheme = visualizerThemeSelect.value;
+    visualizerThemeSelect.addEventListener('change', (e) => {
+        window.visualizerTheme = e.target.value;
     });
 }
